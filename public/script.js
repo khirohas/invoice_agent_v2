@@ -99,6 +99,9 @@ window.addEventListener('DOMContentLoaded', () => {
     function updateFileTable(files) {
         fileListBody.innerHTML = '';
         files.forEach((f) => {
+            // ファイル名のエンコーディング確認
+            console.log('表示するファイル名:', f.name);
+            
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${f.name}</td>

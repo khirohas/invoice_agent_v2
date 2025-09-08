@@ -19,6 +19,20 @@ const upload = multer({
     storage: storage,
     limits: { 
         fileSize: 10 * 1024 * 1024 // 10MB制限
+    },
+    fileFilter: (req, file, cb) => {
+        // ファイル名のエンコーディングを修正
+        if (file.originalname) {
+            try {
+                // latin1からutf8に変換
+                const decodedName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+                file.originalname = decodedName;
+                console.log('ファイル名変換:', file.originalname, '->', decodedName);
+            } catch (e) {
+                console.log('ファイル名変換エラー:', e);
+            }
+        }
+        cb(null, true);
     }
 });
 
@@ -43,22 +57,10 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
         }
 
         const fileId = Date.now().toString();
-        // ファイル名の文字化け対策
-        let originalName = req.file.originalname;
-        try {
-            // latin1からutf8に変換
-            if (Buffer.isBuffer(originalName)) {
-                originalName = Buffer.from(originalName).toString('utf8');
-            } else if (typeof originalName === 'string') {
-                // 既に文字列の場合はそのまま使用
-                originalName = originalName;
-            }
-        } catch (e) {
-            console.log('ファイル名エンコーディング変換エラー:', e);
-        }
+        console.log('アップロードファイル名（変換後）:', req.file.originalname);
         
         fileStorage.set(fileId, {
-            originalname: originalName,
+            originalname: req.file.originalname,
             mimetype: req.file.mimetype,
             size: req.file.size,
             buffer: req.file.buffer,
