@@ -1,0 +1,27 @@
+{
+  "name": "invoice-agent",
+  "version": "1.0.0",
+  "description": "請求書自動管理エージェント",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "build": "echo 'No build step required'",
+    "vercel-build": "echo 'No build step required'"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "exceljs": "^4.4.0",
+    "express": "^5.1.0",
+    "multer": "^2.0.1",
+    "openai": "^5.9.0",
+    "pdf-parse": "^1.1.1",
+    "pdf2pic": "^3.2.0",
+    "puppeteer": "^24.13.0"
+  }
+}

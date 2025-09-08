@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>請求書自動管理エージェント</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-root">
+        <div class="main-preview-wrapper">
+            <main class="main-area">
+                <div class="main-header">
+                    <h1>請求書アップロード</h1>
+                </div>
+                <div class="main-content">
+                    <section class="file-upload-section">
+                        <div class="file-upload-area" id="fileUploadArea">
+                            <div class="upload-icon">📁</div>
+                            <p>請求書画像またはPDFをドラッグ&ドロップまたはクリックして選択</p>
+                            <div class="upload-options">
+                                <label class="upload-option-btn" for="fileInput">
+                                    📄 ファイル選択
+                                    <input type="file" id="fileInput" multiple accept="image/*,.pdf" style="display: none;">
+                                </label>
+                                <span class="upload-divider">or</span>
+                                <label class="upload-option-btn" for="folderInput">
+                                    📂 フォルダ選択
+                                    <input type="file" id="folderInput" webkitdirectory directory multiple accept="image/*,.pdf" style="display: none;">
+                                </label>
+                            </div>
+                        </div>
+                    </section>
+                    <section class="file-list-section">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <h2>アップロード済み請求書</h2>
+                            <div style="display:flex;gap:10px;">
+                                <button id="batchProcessBtn" class="batch-btn">変換開始</button>
+                                <button id="clearAllBtn" class="clear-btn" style="margin-bottom:8px;">全クリア</button>
+                            </div>
+                        </div>
+                        <table class="file-list-table" id="fileListTable">
+                            <thead>
+                                <tr>
+                                    <th>ファイル名</th>
+                                    <th>アップロード日</th>
+                                    <th>容量</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fileListBody">
+                                <!-- ファイルリストがここに表示されます -->
+                            </tbody>
+                        </table>
+                    </section>
+                </div>
+            </main>
+            <div class="splitter" id="splitter"></div>
+            <aside class="preview-area">
+                <div class="preview-header">
+                    <h2>請求書統合管理表プレビュー</h2>
+                </div>
+                <div class="excel-preview" id="excelPreview">
+                    <!-- Excelプレビューがここに表示されます -->
+                </div>
+            </aside>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html> 

@@ -1,0 +1,664 @@
+/* 請求書自動管理エージェント用スタイル */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: linear-gradient(135deg, #35d5d0 0%, #1fa7a2 100%);
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+}
+
+.app-root {
+    display: flex;
+    min-height: 100vh;
+    width: 100vw;
+    background: #fafaf8;
+}
+
+
+
+.main-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    min-height: 100vh;
+    background: #fafaf8;
+    padding-top: 32px;
+    padding-left: 32px;
+}
+
+.chat-card {
+    width: 100%;
+    max-width: 700px;
+    min-height: 80vh;
+    background: #fff;
+    border-radius: 24px;
+    box-shadow: 0 8px 32px rgba(53, 213, 208, 0.10), 0 1.5px 6px rgba(0,0,0,0.03);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    margin: 40px 0;
+}
+
+.chat-header {
+    background: linear-gradient(135deg, #35d5d0 0%, #1fa7a2 100%);
+    color: white;
+    padding: 36px 36px 24px 36px;
+    text-align: center;
+    border-radius: 24px 24px 0 0;
+    box-shadow: 0 2px 8px rgba(53, 213, 208, 0.04);
+}
+
+.chat-header h1 {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.chat-header p {
+    font-size: 1.1rem;
+    opacity: 0.95;
+}
+
+.chat-messages {
+    flex: 1;
+    padding: 32px 36px 16px 36px;
+    overflow-y: auto;
+    background: #f8f9fa;
+}
+
+.message {
+    margin-bottom: 28px;
+    display: flex;
+    align-items: flex-start;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.message.user {
+    justify-content: flex-end;
+}
+
+.message.assistant {
+    justify-content: flex-start;
+}
+
+.message-content {
+    max-width: 70%;
+    padding: 18px 22px;
+    border-radius: 18px;
+    position: relative;
+    word-wrap: break-word;
+    font-size: 1rem;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(53, 213, 208, 0.06);
+}
+
+.message.user .message-content {
+    background: linear-gradient(135deg, #35d5d0 0%, #1fa7a2 100%);
+    color: white;
+    border-bottom-right-radius: 5px;
+    box-shadow: 0 2px 8px rgba(53, 213, 208, 0.10);
+}
+
+.message.assistant .message-content {
+    background: #fff;
+    color: #333;
+    border: 1px solid #e1e5e9;
+    border-bottom-left-radius: 5px;
+    box-shadow: 0 2px 8px rgba(53, 213, 208, 0.06);
+}
+
+.message-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    margin: 0 14px;
+    background: #e0f7f7;
+    box-shadow: 0 1px 4px rgba(53, 213, 208, 0.08);
+}
+
+.message.user .message-avatar {
+    background: linear-gradient(135deg, #35d5d0 0%, #1fa7a2 100%);
+    color: white;
+}
+
+.message.assistant .message-avatar {
+    background: #e0f7f7;
+    color: #35d5d0;
+}
+
+.chat-input-container {
+    padding: 28px 36px 32px 36px;
+    background: #fff;
+    border-top: 1.5px solid #e1e5e9;
+}
+
+.file-upload-area {
+    border: 3px dashed #35d5d0;
+    border-radius: 15px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #f0fcfc;
+    margin-bottom: 20px;
+}
+
+.folder-upload-area {
+    border: 3px dashed #28a745;
+    border-radius: 15px;
+    padding: 30px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #f8fff9;
+    margin-bottom: 20px;
+}
+
+.upload-subtitle {
+    color: #666;
+    font-size: 0.9rem;
+    margin-top: 10px;
+    opacity: 0.8;
+}
+
+.file-upload-area:hover {
+    border-color: #1fa7a2;
+    background: #e0f7f7;
+    transform: translateY(-2px);
+}
+
+.folder-upload-area:hover {
+    border-color: #20c997;
+    background: #f0fff9;
+    transform: translateY(-2px);
+}
+
+.file-upload-area.dragover {
+    border-color: #1fa7a2;
+    background: #d0f0f0;
+    transform: scale(1.02);
+}
+
+.folder-upload-area.dragover {
+    border-color: #20c997;
+    background: #e8fff9;
+    transform: scale(1.02);
+}
+
+.upload-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
+    opacity: 0.7;
+}
+
+.file-upload-area p {
+    color: #666;
+    font-size: 1.1rem;
+    margin-bottom: 20px;
+}
+
+.upload-options {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.upload-option-btn {
+    background: linear-gradient(135deg, #35d5d0 0%, #1fa7a2 100%);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(53, 213, 208, 0.3);
+}
+
+.upload-option-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(53, 213, 208, 0.4);
+}
+
+.upload-divider {
+    color: #999;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.selected-files {
+    margin-bottom: 20px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 12px;
+    border: 1px solid #e1e5e9;
+}
+
+.selected-files h4 {
+    color: #333;
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+}
+
+.file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    border: 1px solid #e1e5e9;
+}
+
+.file-item:last-child {
+    margin-bottom: 0;
+}
+
+.file-icon {
+    font-size: 1.5rem;
+    margin-right: 12px;
+    color: #35d5d0;
+}
+
+.file-name {
+    flex: 1;
+    color: #333;
+    font-weight: 500;
+}
+
+.file-size {
+    color: #666;
+    font-size: 0.9rem;
+    margin-left: 10px;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.process-btn, .clear-btn {
+    padding: 15px 30px;
+    border: none;
+    border-radius: 25px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.process-btn {
+    background: linear-gradient(135deg, #35d5d0 0%, #1fa7a2 100%);
+    color: white;
+}
+
+.process-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(53, 213, 208, 0.4);
+}
+
+.process-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.clear-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.2s;
+}
+
+.clear-btn:hover {
+    background: #c82333;
+}
+
+.processing {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: #35d5d0;
+    font-weight: 600;
+}
+
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #35d5d0;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.download-link {
+    display: inline-block;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 25px;
+    text-decoration: none;
+    font-weight: 600;
+    margin-top: 15px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+}
+
+.download-link:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@media (max-width: 900px) {
+    .sidebar {
+        display: none;
+    }
+    
+    .main-area {
+        margin-left: 0;
+    }
+    
+    .chat-card {
+        margin: 20px;
+        border-radius: 16px;
+    }
+    
+    .chat-header, .chat-input-container, .chat-messages {
+        padding: 20px;
+    }
+}
+
+.chat-messages::-webkit-scrollbar {
+    width: 6px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+    background: #35d5d0;
+    border-radius: 3px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+    background: #1fa7a2;
+} 
+
+/* --- 追加・拡張CSS --- */
+
+.app-root {
+    display: flex;
+    min-height: 100vh;
+    width: 100vw;
+    background: #fafaf8;
+}
+
+.main-preview-wrapper {
+    display: flex;
+    flex: 1;
+    min-height: 100vh;
+    position: relative;
+}
+.main-area {
+    flex-basis: 0;
+    flex-grow: 1;
+    min-width: 50px;
+    transition: flex-basis 0.1s;
+    z-index: 1;
+}
+.splitter {
+    width: 7px;
+    background: linear-gradient(135deg, #e0e0e0 60%, #35d5d0 100%);
+    cursor: col-resize;
+    z-index: 2;
+    transition: background 0.2s;
+}
+.splitter:hover, .splitter.active {
+    background: linear-gradient(135deg, #1fa7a2 0%, #35d5d0 100%);
+}
+.preview-area {
+    width: 340px;
+    min-width: 50px;
+    max-width: none;
+    transition: width 0.1s;
+    z-index: 1;
+}
+
+.main-header {
+    width: 100%;
+    margin-bottom: 16px;
+    padding-left: 0;
+}
+
+.main-header h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.main-header p {
+    font-size: 1.1rem;
+    opacity: 0.95;
+}
+
+.main-content {
+    width: 100%;
+    padding-left: 0;
+}
+
+.file-upload-section {
+    margin-bottom: 12px;
+}
+
+.file-list-section {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(53, 213, 208, 0.06);
+    padding: 20px 24px;
+    margin-top: 0;
+}
+
+.file-list-section h2 {
+    font-size: 1.1rem;
+    margin-bottom: 12px;
+    color: #1fa7a2;
+}
+
+.file-list-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+}
+.file-list-table th, .file-list-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e0e0e0;
+    text-align: left;
+    font-size: 1rem;
+}
+.file-list-table th {
+    background: #e0f7f7;
+    color: #1fa7a2;
+    font-weight: 700;
+}
+.file-list-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* 右端プレビューエリア */
+.preview-header {
+    padding: 28px 24px 12px 24px;
+    color: #1fa7a2;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+.excel-preview {
+    flex: 1;
+    padding: 16px 24px;
+    background: #fff;
+    border-radius: 12px;
+    margin: 0 16px 16px 16px;
+    box-shadow: 0 2px 8px rgba(53, 213, 208, 0.06);
+    overflow-x: auto;
+}
+
+.excel-preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    margin-top: 8px;
+    font-size: 1rem;
+}
+.excel-preview-table th, .excel-preview-table td {
+    border: 1px solid #e0e0e0;
+    padding: 8px 10px;
+    text-align: center;
+}
+.excel-preview-table th {
+    background: #e0f7f7;
+    color: #1fa7a2;
+    font-weight: 700;
+}
+.excel-preview-table tr:nth-child(even) td {
+    background: #f6f8f8;
+}
+
+.excel-status-bar {
+    width: 100%;
+    background: linear-gradient(90deg, #35d5d0 0%, #1fa7a2 100%);
+    color: #fff;
+    font-weight: bold;
+    text-align: center;
+    padding: 8px 0;
+    border-radius: 8px 8px 0 0;
+    margin-bottom: 8px;
+    position: relative;
+    overflow: hidden;
+}
+.excel-status-bar .bar {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 0%;
+    background: rgba(255,255,255,0.3);
+    animation: status-bar-move 1.2s linear infinite;
+}
+@keyframes status-bar-move {
+    0% { width: 0%; left: 0; }
+    50% { width: 100%; left: 0; }
+    100% { width: 0%; left: 100%; }
+}
+
+/* サイドバーのバッチ処理ボタン */
+.sidebar {
+    width: 220px;
+    background: #f6f8f8;
+    border-right: 1.5px solid #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 32px 0 32px 0;
+    height: 100vh;
+    box-shadow: 2px 0 12px 0 rgba(53, 213, 208, 0.04);
+}
+.sidebar-batch {
+    width: 100%;
+    padding: 24px 16px 12px 16px;
+}
+.batch-btn, .delete-btn, .clear-btn {
+    width: 90%;
+    padding: 12px 0;
+    background: linear-gradient(135deg, #35d5d0 0%, #1fa7a2 100%);
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+    box-shadow: 0 2px 8px rgba(53, 213, 208, 0.08);
+}
+.batch-btn:hover, .delete-btn:hover, .clear-btn:hover {
+    background: linear-gradient(135deg, #1fa7a2 0%, #35d5d0 100%);
+}
+
+.delete-btn, .clear-btn {
+    width: auto;
+    padding: 6px 18px;
+    margin: 0 4px;
+    font-size: 1rem;
+    box-shadow: none;
+}
+
+.batch-btn {
+    width: auto;
+    min-width: 120px;
+    display: block;
+    margin-bottom: 12px;
+}
+
+.upload-option-btn {
+    background: linear-gradient(135deg, #35d5d0 0%, #1fa7a2 100%);
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+    box-shadow: 0 2px 8px rgba(53, 213, 208, 0.08);
+    padding: 10px 24px;
+    margin: 0 8px;
+}
+.upload-option-btn:hover {
+    background: linear-gradient(135deg, #1fa7a2 0%, #35d5d0 100%);
+}
+
+/* レスポンシブ調整（必要に応じて） */
+@media (max-width: 1200px) {
+    .preview-area {
+        display: none;
+    }
+} 
