@@ -138,6 +138,8 @@ app.post('/api/batch-process', async (req, res) => {
             try {
                 const fileType = getFileType(fileData.originalname);
                 console.log(`ファイル: ${fileData.originalname}, タイプ: ${fileType}`);
+                console.log(`ファイルサイズ: ${fileData.buffer.length} bytes`);
+                console.log(`MIMEタイプ: ${fileData.mimetype}`);
                 
                 let base64Image;
                 if (fileType === 'pdf') {
@@ -150,8 +152,14 @@ app.post('/api/batch-process', async (req, res) => {
                     console.log(`画像読み込み: ${fileData.originalname}`);
                     base64Image = fileData.buffer.toString('base64');
                     console.log(`画像読み込み完了: ${fileData.originalname}, サイズ: ${base64Image.length}`);
+                    console.log(`Base64先頭10文字: ${base64Image.substring(0, 10)}`);
                 } else {
                     throw new Error('サポートされていないファイル形式です');
+                }
+                
+                // 画像データの検証
+                if (!base64Image || base64Image.length === 0) {
+                    throw new Error('画像データの変換に失敗しました');
                 }
                 
                 console.log(`AI処理開始: ${fileData.originalname}`);
@@ -160,6 +168,8 @@ app.post('/api/batch-process', async (req, res) => {
                 results.push(extractedData);
             } catch (e) {
                 console.error(`ファイル処理エラー: ${fileData.originalname}`, e);
+                console.error(`エラーメッセージ: ${e.message}`);
+                console.error(`エラースタック: ${e.stack}`);
                 results.push({ ファイル名: fileData.originalname, error: e.message });
             }
         }
@@ -188,9 +198,23 @@ app.get('/health', (req, res) => {
 // 請求書情報抽出
 async function extractInvoiceData(base64Image, filename) {
     console.log(`AI処理開始: ${filename}, 画像サイズ: ${base64Image.length}`);
+    
+    // 画像データの検証
+    if (!base64Image || base64Image.length === 0) {
+        throw new Error('画像データが空です');
+    }
+    
+    // Base64データの形式確認
+    const imageDataUrl = `data:image/jpeg;base64,${base64Image}`;
+    console.log('画像データURL長:', imageDataUrl.length);
+    console.log('画像データURL先頭:', imageDataUrl.substring(0, 50) + '...');
+    
     const prompt = `以下の請求書画像から、以下の項目を抽出してください。JSON形式で回答してください。\n\n抽出項目：\n- インボイス登録番号（Tから始まる番号）\n- 請求日\n- 支払期限\n- 請求元会社\n- 請求元担当者\n- 件名\n- 小計（税抜）\n- 消費税額\n- 合計(税込)\n- 支払品目概要\n- 支払方法\n- 支払状況\n- 支払日\n- 備考\n\n注意事項：\n- 金額は数値のみで回答（カンマや円マークは含めない）\n- 日付はYYYY/MM/DD形式で回答\n- 不明な項目は空文字列で回答\n- 明細がある場合は、支払品目概要に品名と数量を記載\n- インボイス登録番号はTから始まる番号を抽出してください\n\n回答形式：\n{\n  "インボイス登録番号": "値",\n  "請求日": "値",\n  "支払期限": "値",\n  "請求元会社": "値",\n  "請求元担当者": "値",\n  "件名": "値",\n  "小計（税抜）": "値",\n  "消費税額": "値",\n  "合計(税込)": "値",\n  "支払品目概要": "値",\n  "支払方法": "値",\n  "支払状況": "値",\n  "支払日": "値",\n  "備考": "値"\n}`;
+    
     try {
         console.log('OpenAI API呼び出し開始');
+        console.log('API Key存在確認:', process.env.OPENAI_API_KEY ? 'あり' : 'なし');
+        
         const response = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [
@@ -201,7 +225,7 @@ async function extractInvoiceData(base64Image, filename) {
                         {
                             type: "image_url",
                             image_url: {
-                                url: `data:image/jpeg;base64,${base64Image}`
+                                url: imageDataUrl
                             }
                         }
                     ]
@@ -209,9 +233,13 @@ async function extractInvoiceData(base64Image, filename) {
             ],
             max_tokens: 1000
         });
+        
         console.log('OpenAI API応答受信');
+        console.log('レスポンス選択肢数:', response.choices.length);
+        
         const content = response.choices[0].message.content;
         console.log('AI応答内容:', content.substring(0, 200) + '...');
+        
         const jsonMatch = content.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
             const extractedData = JSON.parse(jsonMatch[0]);
@@ -222,6 +250,8 @@ async function extractInvoiceData(base64Image, filename) {
         }
     } catch (error) {
         console.error('AI処理エラー詳細:', error);
+        console.error('エラーメッセージ:', error.message);
+        console.error('エラースタック:', error.stack);
         throw new Error('AI処理エラー: ' + error.message);
     }
 }
