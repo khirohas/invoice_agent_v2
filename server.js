@@ -43,8 +43,22 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
         }
 
         const fileId = Date.now().toString();
+        // ファイル名の文字化け対策
+        let originalName = req.file.originalname;
+        try {
+            // latin1からutf8に変換
+            if (Buffer.isBuffer(originalName)) {
+                originalName = Buffer.from(originalName).toString('utf8');
+            } else if (typeof originalName === 'string') {
+                // 既に文字列の場合はそのまま使用
+                originalName = originalName;
+            }
+        } catch (e) {
+            console.log('ファイル名エンコーディング変換エラー:', e);
+        }
+        
         fileStorage.set(fileId, {
-            originalname: req.file.originalname,
+            originalname: originalName,
             mimetype: req.file.mimetype,
             size: req.file.size,
             buffer: req.file.buffer,
@@ -154,6 +168,7 @@ app.post('/api/batch-process', async (req, res) => {
         res.json({ 
             success: true, 
             processedCount: results.length,
+            results: results,
             excelData: excelBase64,
             fileName: `請求書統合管理表_${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.xlsx`
         });
@@ -212,19 +227,56 @@ async function extractInvoiceData(base64Image, filename) {
 // Excelファイル生成（メモリ対応）
 async function generateExcelFile(data) {
     const workbook = new ExcelJS.Workbook();
+    
+    // 文字エンコーディング設定
+    workbook.creator = '請求書自動管理エージェント';
+    workbook.lastModifiedBy = '請求書自動管理エージェント';
+    workbook.created = new Date();
+    workbook.modified = new Date();
+    
     const worksheet = workbook.addWorksheet('請求書統合管理表');
+    
+    // ヘッダー行の設定
     const headers = [
         'ファイル名', 'インボイス登録番号', '請求日', '支払期限', '請求元会社', '支払品目概要', '請求元担当者',
         '件名', '小計（税抜）', '消費税額', '合計(税込)',
         '支払方法', '支払状況', '支払日', '備考'
     ];
-    worksheet.addRow(headers);
-    data.forEach(row => {
-        worksheet.addRow(headers.map(h => row[h] || ''));
-    });
-    worksheet.columns.forEach(column => { column.width = 15; });
     
-    // メモリに書き込み
+    // ヘッダー行を追加
+    const headerRow = worksheet.addRow(headers);
+    headerRow.font = { bold: true };
+    headerRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE0E0E0' }
+    };
+    
+    // データ行を追加
+    data.forEach(row => {
+        const rowData = headers.map(h => {
+            const value = row[h] || '';
+            // 数値の場合は数値として設定
+            if (h.includes('計') && !isNaN(value) && value !== '') {
+                return parseFloat(value);
+            }
+            return value;
+        });
+        worksheet.addRow(rowData);
+    });
+    
+    // 列幅の設定
+    worksheet.columns.forEach(column => { 
+        column.width = 15; 
+    });
+    
+    // 金額列の書式設定
+    const amountColumns = [8, 9, 10]; // 小計、消費税額、合計の列インデックス
+    amountColumns.forEach(colIndex => {
+        worksheet.getColumn(colIndex).numFmt = '#,##0';
+    });
+    
+    // メモリに書き込み（UTF-8エンコーディング）
     const buffer = await workbook.xlsx.writeBuffer();
     return buffer;
 }

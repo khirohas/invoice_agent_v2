@@ -145,12 +145,24 @@ window.addEventListener('DOMContentLoaded', () => {
                         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
                     });
                     const downloadUrl = URL.createObjectURL(excelBlob);
-                    excelPreview.innerHTML = `
-                        <div style="margin-bottom:12px;">
-                            <a href="${downloadUrl}" class="upload-option-btn" download="${result.fileName}">📄 Excelダウンロード</a>
-                        </div>
-                        <div style="color:#1fa7a2;">処理完了: ${result.processedCount}件のファイルを処理しました</div>
-                    `;
+                    
+                    // 処理結果をテーブル形式で表示
+                    if (result.results && result.results.length > 0) {
+                        excelPreview.innerHTML = `
+                            <div style="margin-bottom:12px;">
+                                <a href="${downloadUrl}" class="upload-option-btn" download="${result.fileName}">📄 Excelダウンロード</a>
+                            </div>
+                            <div style="color:#1fa7a2; margin-bottom: 12px;">処理完了: ${result.processedCount}件のファイルを処理しました</div>
+                            ${renderResultsTable(result.results)}
+                        `;
+                    } else {
+                        excelPreview.innerHTML = `
+                            <div style="margin-bottom:12px;">
+                                <a href="${downloadUrl}" class="upload-option-btn" download="${result.fileName}">📄 Excelダウンロード</a>
+                            </div>
+                            <div style="color:#1fa7a2;">処理完了: ${result.processedCount}件のファイルを処理しました</div>
+                        `;
+                    }
                 } else {
                     excelPreview.innerHTML = '<div style="color:#1fa7a2;">Excelプレビューなし</div>';
                 }
@@ -164,6 +176,37 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // 結果テーブル表示関数
+    function renderResultsTable(results) {
+        if (!results || results.length === 0) return '';
+        
+        const headers = [
+            'ファイル名', 'インボイス登録番号', '請求日', '支払期限', '請求元会社', 
+            '支払品目概要', '請求元担当者', '件名', '小計（税抜）', '消費税額', 
+            '合計(税込)', '支払方法', '支払状況', '支払日', '備考'
+        ];
+        
+        let html = '<table class="results-table" style="width:100%; border-collapse: collapse; margin-top: 12px;">';
+        html += '<thead><tr style="background-color: #f5f5f5;">';
+        headers.forEach(header => {
+            html += `<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">${header}</th>`;
+        });
+        html += '</tr></thead><tbody>';
+        
+        results.forEach(row => {
+            html += '<tr>';
+            headers.forEach(header => {
+                const value = row[header] || '';
+                const displayValue = typeof value === 'number' && header.includes('計') ? 
+                    '¥' + value.toLocaleString('ja-JP') : value;
+                html += `<td style="border: 1px solid #ddd; padding: 8px;">${displayValue}</td>`;
+            });
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+        
+        return html;
+    }
 
     // 全クリアボタン
     document.getElementById('clearAllBtn').onclick = async () => {
