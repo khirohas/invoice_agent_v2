@@ -254,7 +254,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 let displayValue = value;
                 
                 // 金額項目の場合は¥マークとコンマ区切りを適用
-                if (header.includes('計') && !isNaN(value) && value !== '') {
+                if ((header.includes('計') || header.includes('消費税')) && !isNaN(value) && value !== '') {
                     displayValue = `¥${parseFloat(value).toLocaleString('ja-JP')}`;
                 }
                 

@@ -383,7 +383,7 @@ async function generateExcelFile(data) {
         const rowData = headers.map(h => {
             const value = row[h] || '';
             // 金額項目の場合は文字列として設定（¥マークとコンマ区切り）
-            if (h.includes('計') && !isNaN(value) && value !== '') {
+            if ((h.includes('計') || h.includes('消費税')) && !isNaN(value) && value !== '') {
                 return `¥${parseFloat(value).toLocaleString('ja-JP')}`;
             }
             return value;
