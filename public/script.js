@@ -28,6 +28,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // --- プレビュー復元（メモリストレージ対応のため無効化） ---
     // メモリストレージでは永続化されないため、プレビュー復元は無効化
+
     // --- 比率復元 ---
     const lastSplit = localStorage.getItem('splitRatio');
     if (lastSplit) {
@@ -77,23 +78,64 @@ window.addEventListener('DOMContentLoaded', () => {
             f.type.startsWith('image/') || f.type === 'application/pdf'
         );
         if (files.length === 0) return;
-        // 1ファイルずつアップロード
-        Promise.all(files.map(uploadFile)).then(fetchFileList);
+        
+        console.log(`選択されたファイル数: ${files.length}`);
+        console.log('ファイル一覧:', files.map(f => f.name));
+        
+        // 1ファイルずつアップロード（エラーハンドリング付き）
+        uploadFilesSequentially(files).then(() => {
+            console.log('全ファイルアップロード完了');
+            fetchFileList();
+        });
+    }
+
+    async function uploadFilesSequentially(files) {
+        for (const file of files) {
+            try {
+                console.log(`アップロード開始: ${file.name}`);
+                await uploadFile(file);
+                console.log(`アップロード完了: ${file.name}`);
+            } catch (error) {
+                console.error(`アップロードエラー: ${file.name}`, error);
+                // エラーが発生しても次のファイルの処理を続行
+            }
+        }
     }
 
     async function uploadFile(file) {
         const formData = new FormData();
         formData.append('file', file);
-        await fetch('/api/upload', {
+        
+        const response = await fetch('/api/upload', {
             method: 'POST',
             body: formData
         });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'アップロードに失敗しました');
+        }
+        
+        const result = await response.json();
+        console.log(`アップロード成功: ${file.name}`, result);
+        return result;
     }
 
     async function fetchFileList() {
-        const res = await fetch('/api/files');
-        const files = await res.json();
-        updateFileTable(files);
+        try {
+            console.log('ファイルリスト取得開始');
+            const res = await fetch('/api/files');
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+            const files = await res.json();
+            console.log(`ファイルリスト取得完了: ${files.length}件`);
+            updateFileTable(files);
+        } catch (error) {
+            console.error('ファイルリスト取得エラー:', error);
+            // エラーが発生してもテーブルは更新（空の状態で）
+            updateFileTable([]);
+        }
     }
 
     function updateFileTable(files) {
@@ -137,10 +179,19 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // 変換開始ボタン
     batchProcessBtn.addEventListener('click', async () => {
+        console.log('変換開始ボタンがクリックされました');
         excelPreview.innerHTML = '<div class="excel-status-bar">変換中...<div class="bar"></div></div>';
         try {
+            console.log('API呼び出し開始: /api/batch-process');
             const res = await fetch('/api/batch-process', { method: 'POST' });
+            console.log('API応答受信:', res.status, res.statusText);
+            
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+            
             const result = await res.json();
+            console.log('API結果:', result);
             if (result.success) {
                 // ExcelデータをBase64から直接処理
                 if (result.excelData) {

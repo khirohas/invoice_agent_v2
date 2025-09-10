@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs').promises;
 const multer = require('multer');
 const OpenAI = require('openai');
 const ExcelJS = require('exceljs');
@@ -131,6 +132,15 @@ app.post('/api/batch-process', async (req, res) => {
             return res.json({ success: false, error: 'ファイルがありません' });
         }
         
+        // Vercel環境でのファイル数制限
+        const maxFiles = process.env.NODE_ENV === 'production' ? 5 : 10;
+        if (fileStorage.size > maxFiles) {
+            return res.json({ 
+                success: false, 
+                error: `ファイル数が多すぎます。最大${maxFiles}ファイルまで処理できます。現在: ${fileStorage.size}ファイル` 
+            });
+        }
+        
         console.log('処理対象ファイル数:', fileStorage.size);
         const results = [];
         
@@ -141,30 +151,59 @@ app.post('/api/batch-process', async (req, res) => {
                 console.log(`ファイルサイズ: ${fileData.buffer.length} bytes`);
                 console.log(`MIMEタイプ: ${fileData.mimetype}`);
                 
-                let base64Image;
+                let extractedData;
                 if (fileType === 'pdf') {
-                    // PDFファイルの場合、画像に変換
-                    console.log(`PDF変換開始: ${fileData.originalname}`);
-                    base64Image = await convertPdfToImage(fileData.buffer);
-                    console.log(`PDF変換完了: ${fileData.originalname}, 画像サイズ: ${base64Image.length}`);
+                    // PDFファイルの場合、Vercel環境では直接テキスト解析
+                    console.log(`PDF処理開始: ${fileData.originalname}`);
+                    try {
+                        if (process.env.NODE_ENV === 'production') {
+                            // Vercel環境: 直接テキスト解析
+                            console.log(`Vercel環境: PDFテキスト解析: ${fileData.originalname}`);
+                            const pdfData = await pdfParse(fileData.buffer);
+                            console.log(`PDFテキスト抽出完了: ${fileData.originalname}`);
+                            extractedData = await extractInvoiceDataFromText(pdfData.text);
+                            extractedData.ファイル名 = fileData.originalname;
+                        } else {
+                            // ローカル環境: 画像変換を試行
+                            const base64Image = await convertPdfToImage(fileData.buffer);
+                            console.log(`PDF変換完了: ${fileData.originalname}, 画像サイズ: ${base64Image.length}`);
+                            
+                            // 画像データの検証
+                            if (!base64Image || base64Image.length === 0) {
+                                throw new Error('画像データの変換に失敗しました');
+                            }
+                            
+                            console.log(`AI処理開始（画像）: ${fileData.originalname}`);
+                            extractedData = await extractInvoiceData(base64Image, fileData.originalname);
+                            console.log(`AI処理完了（画像）: ${fileData.originalname}`);
+                        }
+                    } catch (pdfError) {
+                        console.log(`PDF処理失敗、テキスト解析に切り替え: ${fileData.originalname}`);
+                        // PDFを直接テキストとして解析
+                        const pdfData = await pdfParse(fileData.buffer);
+                        console.log(`PDFテキスト抽出完了: ${fileData.originalname}`);
+                        extractedData = await extractInvoiceDataFromText(pdfData.text);
+                        extractedData.ファイル名 = fileData.originalname;
+                    }
                 } else if (fileType === 'image') {
                     // 画像ファイルの場合、直接読み込み
                     console.log(`画像読み込み: ${fileData.originalname}`);
-                    base64Image = fileData.buffer.toString('base64');
+                    const base64Image = fileData.buffer.toString('base64');
                     console.log(`画像読み込み完了: ${fileData.originalname}, サイズ: ${base64Image.length}`);
                     console.log(`Base64先頭10文字: ${base64Image.substring(0, 10)}`);
+                    
+                    // 画像データの検証
+                    if (!base64Image || base64Image.length === 0) {
+                        throw new Error('画像データの変換に失敗しました');
+                    }
+                    
+                    console.log(`AI処理開始（画像）: ${fileData.originalname}`);
+                    extractedData = await extractInvoiceData(base64Image, fileData.originalname);
+                    console.log(`AI処理完了（画像）: ${fileData.originalname}`);
                 } else {
                     throw new Error('サポートされていないファイル形式です');
                 }
                 
-                // 画像データの検証
-                if (!base64Image || base64Image.length === 0) {
-                    throw new Error('画像データの変換に失敗しました');
-                }
-                
-                console.log(`AI処理開始: ${fileData.originalname}`);
-                const extractedData = await extractInvoiceData(base64Image, fileData.originalname);
-                console.log(`AI処理完了: ${fileData.originalname}`);
                 results.push(extractedData);
             } catch (e) {
                 console.error(`ファイル処理エラー: ${fileData.originalname}`, e);
@@ -174,19 +213,35 @@ app.post('/api/batch-process', async (req, res) => {
             }
         }
         
+        console.log('Excelファイル生成開始');
         const excelBuffer = await generateExcelFile(results);
         const excelBase64 = excelBuffer.toString('base64');
+        console.log('Excelファイル生成完了');
         
-        res.json({ 
+        const response = { 
             success: true, 
             processedCount: results.length,
             results: results,
             excelData: excelBase64,
             fileName: `請求書統合管理表_${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.xlsx`
+        };
+        
+        console.log('バッチ処理完了:', {
+            processedCount: response.processedCount,
+            fileName: response.fileName,
+            excelDataSize: excelBase64.length
         });
+        
+        res.json(response);
     } catch (e) {
         console.error('バッチ処理エラー:', e);
-        res.json({ success: false, error: e.message });
+        console.error('エラースタック:', e.stack);
+        res.status(500).json({ 
+            success: false, 
+            error: process.env.NODE_ENV === 'production' 
+                ? '処理中にエラーが発生しました。ファイル数やサイズを確認してください。' 
+                : e.message 
+        });
     }
 });
 
@@ -194,6 +249,45 @@ app.post('/api/batch-process', async (req, res) => {
 app.get('/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
+
+// テキストベースの請求書情報抽出
+async function extractInvoiceDataFromText(text) {
+    console.log('テキストベース請求書解析開始');
+    
+    const prompt = `以下の請求書テキストから、以下の項目を抽出してください。JSON形式で回答してください。\n\n抽出項目：\n- インボイス登録番号（Tから始まる番号）\n- 請求日\n- 支払期限\n- 請求元会社\n- 請求元担当者\n- 件名\n- 小計（税抜）\n- 消費税額\n- 合計(税込)\n- 支払品目概要\n- 支払方法\n- 支払状況\n- 支払日\n- 備考\n\n注意事項：\n- 金額は数値のみで回答（カンマや円マークは含めない）\n- 日付はYYYY/MM/DD形式で回答\n- 不明な項目は空文字列で回答\n- 明細がある場合は、支払品目概要に品名と数量を記載\n- インボイス登録番号はTから始まる番号を抽出してください\n\n請求書テキスト：\n${text}\n\n回答形式：\n{\n  "インボイス登録番号": "値",\n  "請求日": "値",\n  "支払期限": "値",\n  "請求元会社": "値",\n  "請求元担当者": "値",\n  "件名": "値",\n  "小計（税抜）": "値",\n  "消費税額": "値",\n  "合計(税込)": "値",\n  "支払品目概要": "値",\n  "支払方法": "値",\n  "支払状況": "値",\n  "支払日": "値",\n  "備考": "値"\n}`;
+    
+    try {
+        console.log('OpenAI API呼び出し開始（テキスト）');
+        
+        const response = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+                {
+                    role: "user",
+                    content: prompt
+                }
+            ],
+            max_tokens: 1000
+        });
+        
+        console.log('OpenAI API応答受信（テキスト）');
+        
+        const content = response.choices[0].message.content;
+        console.log('AI応答内容（テキスト）:', content.substring(0, 200) + '...');
+        
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            const extractedData = JSON.parse(jsonMatch[0]);
+            console.log('JSON解析完了（テキスト）:', Object.keys(extractedData));
+            return extractedData;
+        } else {
+            throw new Error('JSONデータが見つかりませんでした');
+        }
+    } catch (error) {
+        console.error('AI処理エラー詳細（テキスト）:', error);
+        throw new Error('AI処理エラー: ' + error.message);
+    }
+}
 
 // 請求書情報抽出
 async function extractInvoiceData(base64Image, filename) {
@@ -313,10 +407,24 @@ async function generateExcelFile(data) {
     return buffer;
 }
 
-// PDFを画像に変換する関数（メモリ対応）
+// PDFを画像に変換する関数（Vercel対応）
 async function convertPdfToImage(pdfBuffer) {
     try {
         console.log(`PDF変換開始, サイズ: ${pdfBuffer.length}`);
+        
+        // Vercel環境ではファイルシステムが制限されているため、
+        // 直接テキスト解析に切り替え
+        if (process.env.NODE_ENV === 'production') {
+            console.log('Vercel環境: PDFテキスト解析に切り替え');
+            const pdfData = await pdfParse(pdfBuffer);
+            console.log('PDFテキスト抽出完了:', pdfData.text.substring(0, 200));
+            
+            // テキストベースで請求書情報を抽出
+            const extractedData = await extractInvoiceDataFromText(pdfData.text);
+            return extractedData;
+        }
+        
+        // ローカル環境でのみ画像変換を実行
         const options = {
             density: 300,
             format: "png",
@@ -332,7 +440,19 @@ async function convertPdfToImage(pdfBuffer) {
         return base64Image;
     } catch (error) {
         console.error('PDF変換エラー詳細:', error);
-        throw new Error('PDF変換エラー: ' + error.message);
+        // PDF変換に失敗した場合、PDFを直接テキストとして解析
+        try {
+            console.log('PDF直接解析に切り替え');
+            const pdfData = await pdfParse(pdfBuffer);
+            console.log('PDFテキスト抽出完了:', pdfData.text.substring(0, 200));
+            
+            // テキストベースで請求書情報を抽出
+            const extractedData = await extractInvoiceDataFromText(pdfData.text);
+            return extractedData;
+        } catch (textError) {
+            console.error('PDFテキスト解析エラー:', textError);
+            throw new Error('PDF変換エラー: ' + error.message);
+        }
     }
 }
 
