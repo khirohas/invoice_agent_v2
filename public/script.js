@@ -251,8 +251,13 @@ window.addEventListener('DOMContentLoaded', () => {
             html += '<tr>';
             headers.forEach(header => {
                 const value = row[header] || '';
-                const displayValue = typeof value === 'number' && header.includes('計') ? 
-                    '¥' + value.toLocaleString('ja-JP') : value;
+                let displayValue = value;
+                
+                // 金額項目の場合は¥マークとコンマ区切りを適用
+                if (header.includes('計') && !isNaN(value) && value !== '') {
+                    displayValue = `¥${parseFloat(value).toLocaleString('ja-JP')}`;
+                }
+                
                 html += `<td style="border: 1px solid #ddd; padding: 8px;">${displayValue}</td>`;
             });
             html += '</tr>';

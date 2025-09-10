@@ -382,9 +382,9 @@ async function generateExcelFile(data) {
     data.forEach(row => {
         const rowData = headers.map(h => {
             const value = row[h] || '';
-            // 数値の場合は数値として設定
+            // 金額項目の場合は文字列として設定（¥マークとコンマ区切り）
             if (h.includes('計') && !isNaN(value) && value !== '') {
-                return parseFloat(value);
+                return `¥${parseFloat(value).toLocaleString('ja-JP')}`;
             }
             return value;
         });
@@ -394,12 +394,6 @@ async function generateExcelFile(data) {
     // 列幅の設定
     worksheet.columns.forEach(column => { 
         column.width = 15; 
-    });
-    
-    // 金額列の書式設定
-    const amountColumns = [8, 9, 10]; // 小計、消費税額、合計の列インデックス
-    amountColumns.forEach(colIndex => {
-        worksheet.getColumn(colIndex).numFmt = '#,##0';
     });
     
     // メモリに書き込み（UTF-8エンコーディング）
