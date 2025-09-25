@@ -158,7 +158,7 @@ app.post('/api/batch-process', async (req, res) => {
         }
         
         // Vercel環境でのファイル数制限
-        const maxFiles = process.env.NODE_ENV === 'production' ? 5 : 10;
+        const maxFiles = process.env.NODE_ENV === 'production' ? 20 : 30;
         if (fileStorage.size > maxFiles) {
             return res.json({ 
                 success: false, 
