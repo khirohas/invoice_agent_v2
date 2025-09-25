@@ -155,6 +155,7 @@ body {
     transition: all 0.3s ease;
     background: #f0fcfc;
     margin-bottom: 20px;
+    position: relative;
 }
 
 .folder-upload-area {
@@ -654,6 +655,66 @@ body {
 }
 .upload-option-btn:hover {
     background: linear-gradient(135deg, #1fa7a2 0%, #35d5d0 100%);
+}
+
+/* アップロード進捗表示 */
+.upload-progress {
+    margin-top: 20px;
+    padding: 20px;
+    background: #f0fffe;
+    border-radius: 8px;
+    border: 1px solid #e0f7f7;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #e0f7f7;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #35d5d0 0%, #1fa7a2 100%);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+    width: 0%;
+    animation: progressPulse 1.5s ease-in-out infinite;
+}
+
+.progress-text {
+    text-align: center;
+    color: #1fa7a2;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+@keyframes progressPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ファイルアップロードアニメーション */
+.file-upload-area.uploading {
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.file-upload-area.uploading .upload-icon {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 /* レスポンシブ調整（必要に応じて） */

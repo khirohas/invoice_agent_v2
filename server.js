@@ -57,20 +57,25 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
             return res.status(400).json({ error: 'ファイルが選択されていません' });
         }
 
-        const fileId = Date.now().toString();
+        const fileId = Date.now().toString() + Math.random().toString(36).substring(2);
+        const sessionId = req.body.sessionId || 'default';
         console.log('アップロードファイル名（変換後）:', req.file.originalname);
+        console.log('セッションID:', sessionId);
         
         fileStorage.set(fileId, {
             originalname: req.file.originalname,
             mimetype: req.file.mimetype,
             size: req.file.size,
             buffer: req.file.buffer,
-            uploadDate: new Date()
+            uploadDate: new Date(),
+            sessionId: sessionId
         });
 
         res.json({ 
             success: true, 
             fileId: fileId,
+            originalName: req.file.originalname,
+            size: req.file.size,
             message: 'ファイルがアップロードされました' 
         });
     } catch (error) {
@@ -82,13 +87,17 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 // ファイル一覧
 app.get('/api/files', async (req, res) => {
     try {
-        const fileList = Array.from(fileStorage.entries()).map(([fileId, fileData]) => ({
-            fileId: fileId,
-            name: fileData.originalname,
-            date: fileData.uploadDate,
-            size: fileData.size,
-            mimetype: fileData.mimetype
-        }));
+        const sessionId = req.query.sessionId || 'default';
+        const fileList = Array.from(fileStorage.entries())
+            .filter(([_, fileData]) => fileData.sessionId === sessionId)
+            .map(([fileId, fileData]) => ({
+                fileId: fileId,
+                name: fileData.originalname,
+                date: fileData.uploadDate,
+                size: fileData.size,
+                mimetype: fileData.mimetype
+            }));
+        console.log(`セッション ${sessionId} のファイル数: ${fileList.length}`);
         res.json(fileList);
     } catch (error) {
         console.error('ファイル一覧取得エラー:', error);
@@ -97,14 +106,20 @@ app.get('/api/files', async (req, res) => {
 });
 
 // ファイル削除
-app.post('/api/delete-file', async (req, res) => {
+app.delete('/api/delete-file/:id', async (req, res) => {
     try {
-        const { fileId } = req.body;
-        if (!fileId) return res.status(400).json({ error: 'ファイルID未指定' });
+        const fileId = req.params.id;
+        const sessionId = req.query.sessionId || 'default';
         
         if (fileStorage.has(fileId)) {
-            fileStorage.delete(fileId);
-            res.json({ success: true });
+            const fileData = fileStorage.get(fileId);
+            if (fileData.sessionId === sessionId) {
+                fileStorage.delete(fileId);
+                console.log(`ファイル削除成功: ${fileId} (セッション: ${sessionId})`);
+                res.json({ success: true });
+            } else {
+                res.status(403).json({ error: 'アクセス権限がありません' });
+            }
         } else {
             res.status(404).json({ error: 'ファイルが見つかりません' });
         }
@@ -117,8 +132,18 @@ app.post('/api/delete-file', async (req, res) => {
 // 全ファイル削除
 app.post('/api/clear-files', async (req, res) => {
     try {
-        fileStorage.clear();
-        res.json({ success: true });
+        const { sessionId } = req.body;
+        
+        let deletedCount = 0;
+        for (const [fileId, fileData] of fileStorage.entries()) {
+            if (fileData.sessionId === sessionId) {
+                fileStorage.delete(fileId);
+                deletedCount++;
+            }
+        }
+        
+        console.log(`セッション ${sessionId} のファイル削除完了: ${deletedCount}件`);
+        res.json({ success: true, deletedCount: deletedCount });
     } catch (error) {
         console.error('全ファイル削除エラー:', error);
         res.status(500).json({ error: '全削除に失敗しました' });

@@ -1,5 +1,15 @@
 // 請求書自動管理エージェント用スクリプト
 
+// セッション管理
+let sessionId = localStorage.getItem('sessionId') || generateSessionId();
+if (!localStorage.getItem('sessionId')) {
+    localStorage.setItem('sessionId', sessionId);
+}
+
+function generateSessionId() {
+    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+}
+
 // DOM要素の取得
 const fileUploadArea = document.getElementById('fileUploadArea');
 const fileInput = document.getElementById('fileInput');
@@ -11,6 +21,11 @@ const fileList = document.getElementById('fileList');
 const processBtn = document.getElementById('processBtn');
 const clearBtn = document.getElementById('clearBtn');
 const chatMessages = document.getElementById('chatMessages');
+
+// 進捗表示用の要素
+const uploadProgress = document.getElementById('uploadProgress');
+const progressFill = document.getElementById('progressFill');
+const progressText = document.getElementById('progressText');
 
 // 初期化
 window.addEventListener('DOMContentLoaded', () => {
@@ -52,6 +67,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     // 初回リスト取得
+    console.log(`[セッション] セッションID: ${sessionId}`);
     fetchFileList();
 
     // ファイル選択・フォルダ選択
@@ -82,29 +98,106 @@ window.addEventListener('DOMContentLoaded', () => {
         console.log(`選択されたファイル数: ${files.length}`);
         console.log('ファイル一覧:', files.map(f => f.name));
         
-        // 1ファイルずつアップロード（エラーハンドリング付き）
-        uploadFilesSequentially(files).then(() => {
-            console.log('全ファイルアップロード完了');
-            fetchFileList();
-        });
+        // アップロード開始のUI更新
+        startUploadUI(files.length);
+        
+        // 1ファイルずつアップロード（進捗表示付き）
+        uploadFilesSequentially(files, 0);
     }
 
-    async function uploadFilesSequentially(files) {
-        for (const file of files) {
-            try {
-                console.log(`アップロード開始: ${file.name}`);
-                await uploadFile(file);
-                console.log(`アップロード完了: ${file.name}`);
-            } catch (error) {
-                console.error(`アップロードエラー: ${file.name}`, error);
-                // エラーが発生しても次のファイルの処理を続行
+    // アップロードUI開始
+    function startUploadUI(totalFiles) {
+        fileUploadArea.classList.add('uploading');
+        uploadProgress.style.display = 'block';
+        progressFill.style.width = '0%';
+        progressText.textContent = `アップロード準備中... (0/${totalFiles})`;
+    }
+
+    // アップロードUI終了
+    function endUploadUI() {
+        fileUploadArea.classList.remove('uploading');
+        uploadProgress.style.display = 'none';
+        progressFill.style.width = '0%';
+    }
+
+    // 進捗更新
+    function updateProgress(current, total, fileName) {
+        const percentage = (current / total) * 100;
+        progressFill.style.width = `${percentage}%`;
+        progressText.textContent = `アップロード中... (${current}/${total}) ${fileName}`;
+    }
+
+    // シーケンシャルアップロード（進捗表示付き）
+    async function uploadFilesSequentially(files, index) {
+        if (index >= files.length) {
+            console.log('全ファイルアップロード完了');
+            endUploadUI();
+            await fetchFileList();
+            return;
+        }
+        
+        const currentFile = files[index];
+        updateProgress(index, files.length, currentFile.name);
+        
+        try {
+            console.log(`アップロード開始: ${index + 1}/${files.length} - ${currentFile.name}`);
+            const uploadStartTime = Date.now();
+            await uploadFile(currentFile);
+            const uploadEndTime = Date.now();
+            const uploadDuration = uploadEndTime - uploadStartTime;
+            
+            console.log(`アップロード完了: ${index + 1}/${files.length} - ${currentFile.name} (${uploadDuration}ms)`);
+            
+            // ファイルリストを即座に更新
+            await fetchFileList();
+            
+            // 次のファイルをアップロード（少し間隔を空ける）
+            setTimeout(() => {
+                uploadFilesSequentially(files, index + 1);
+            }, 500);
+        } catch (error) {
+            console.error(`アップロードエラー: ${currentFile.name}`, error);
+            
+            // エラーが発生した場合の処理
+            const errorMessage = `ファイル "${currentFile.name}" のアップロードに失敗しました:\n\n${error.message}\n\n続行しますか？`;
+            if (confirm(errorMessage)) {
+                // 次のファイルをアップロード
+                setTimeout(() => {
+                    uploadFilesSequentially(files, index + 1);
+                }, 500);
+            } else {
+                // アップロードを停止
+                endUploadUI();
             }
         }
     }
 
     async function uploadFile(file) {
+        console.log(`アップロード開始: ${file.name} (${file.size} bytes, ${file.type})`);
+        
+        // ファイルサイズチェック
+        if (file.size > 10 * 1024 * 1024) {
+            throw new Error(`ファイルサイズが大きすぎます: ${(file.size / 1024 / 1024).toFixed(2)}MB (制限: 10MB)`);
+        }
+        
+        // ファイル名の文字化け修正
+        let correctedName = file.name;
+        try {
+            correctedName = decodeURIComponent(escape(file.name));
+        } catch (e) {
+            console.warn('ファイル名修正(方法1)失敗:', e.message);
+            correctedName = file.name;
+        }
+        
+        if (correctedName === file.name) {
+            console.log(`ファイル名修正スキップ: "${file.name}" (修正不要)`);
+        } else {
+            console.log(`ファイル名修正: "${file.name}" → "${correctedName}"`);
+        }
+        
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('sessionId', sessionId);
         
         const response = await fetch('/api/upload', {
             method: 'POST',
@@ -112,27 +205,42 @@ window.addEventListener('DOMContentLoaded', () => {
         });
         
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'アップロードに失敗しました');
+            let errorMessage;
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.details || errorData.error || 'アップロードに失敗しました';
+                console.error('アップロードエラー:', errorData);
+            } catch (jsonError) {
+                try {
+                    const errorText = await response.text();
+                    console.error('アップロードエラー (JSONパース失敗):', errorText);
+                    errorMessage = `アップロードに失敗しました (${response.status}): ${errorText.substring(0, 100)}...`;
+                } catch (textError) {
+                    console.error('レスポンス読み取りエラー:', textError);
+                    errorMessage = `アップロードに失敗しました (${response.status})`;
+                }
+            }
+            throw new Error(errorMessage);
         }
         
         const result = await response.json();
-        console.log(`アップロード成功: ${file.name}`, result);
+        console.log(`アップロード成功: ${result.originalName || correctedName}`);
         return result;
     }
 
     async function fetchFileList() {
         try {
-            console.log('ファイルリスト取得開始');
-            const res = await fetch('/api/files');
+            console.log(`[ファイルリスト] 取得開始... セッションID: ${sessionId}`);
+            const res = await fetch(`/api/files?sessionId=${encodeURIComponent(sessionId)}`);
             if (!res.ok) {
                 throw new Error(`HTTP error! status: ${res.status}`);
             }
             const files = await res.json();
-            console.log(`ファイルリスト取得完了: ${files.length}件`);
+            console.log('[ファイルリスト] 取得完了:', files.length, '件');
+            console.log('[ファイルリスト] ファイル一覧:', files.map(f => ({ id: f.fileId, name: f.name })));
             updateFileTable(files);
         } catch (error) {
-            console.error('ファイルリスト取得エラー:', error);
+            console.error('[ファイルリスト] 取得エラー:', error);
             // エラーが発生してもテーブルは更新（空の状態で）
             updateFileTable([]);
         }
@@ -141,9 +249,7 @@ window.addEventListener('DOMContentLoaded', () => {
     function updateFileTable(files) {
         fileListBody.innerHTML = '';
         files.forEach((f) => {
-            // ファイル名のエンコーディング確認
-            console.log('表示するファイル名:', f.name);
-            
+            console.log(`[ファイル表示] ${f.name}: サイズ=${f.size} (型: ${typeof f.size})`);
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${f.name}</td>
@@ -153,16 +259,31 @@ window.addEventListener('DOMContentLoaded', () => {
             `;
             fileListBody.appendChild(tr);
         });
+        
         // 削除ボタンイベント
         document.querySelectorAll('.delete-btn').forEach(btn => {
             btn.onclick = async (e) => {
                 const fileId = btn.getAttribute('data-file-id');
-                await fetch('/api/delete-file', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ fileId })
-                });
-                fetchFileList();
+                const fileName = btn.closest('tr').querySelector('td:first-child').textContent;
+                
+                if (confirm(`ファイル "${fileName}" を削除しますか？`)) {
+                    try {
+                        const res = await fetch(`/api/delete-file/${fileId}?sessionId=${encodeURIComponent(sessionId)}`, {
+                            method: 'DELETE'
+                        });
+                        
+                        if (res.ok) {
+                            console.log(`ファイル削除成功: ${fileName}`);
+                            await fetchFileList();
+                        } else {
+                            const errorData = await res.json();
+                            alert(`削除に失敗しました: ${errorData.error || '不明なエラー'}`);
+                        }
+                    } catch (err) {
+                        console.error('削除エラー:', err);
+                        alert(`削除に失敗しました: ${err.message}`);
+                    }
+                }
             };
         });
     }
@@ -269,11 +390,30 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // 全クリアボタン
     document.getElementById('clearAllBtn').onclick = async () => {
-        if (!confirm('本当に全てのファイルを削除しますか？')) return;
-        await fetch('/api/clear-files', { method: 'POST' });
-        fetchFileList();
-        // プレビューも消去
-        excelPreview.innerHTML = '';
+        if (confirm('すべてのファイルを削除しますか？')) {
+            try {
+                const res = await fetch('/api/clear-files', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ sessionId })
+                });
+                
+                if (res.ok) {
+                    console.log('全ファイル削除成功');
+                    await fetchFileList();
+                    // プレビューも消去
+                    excelPreview.innerHTML = '';
+                } else {
+                    const errorData = await res.json();
+                    alert(`削除に失敗しました: ${errorData.error || '不明なエラー'}`);
+                }
+            } catch (err) {
+                console.error('全削除エラー:', err);
+                alert(`削除に失敗しました: ${err.message}`);
+            }
+        }
     };
 
     // スプリッターによるリサイズ
